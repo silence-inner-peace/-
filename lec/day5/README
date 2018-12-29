@@ -1,0 +1,65 @@
+
+[] hadoop wordcount
+docker run --mount type=bind,source=/srv/docker-data,target=/trn harisekhon/hadoop
+docker build -t hadoopant hadoopant # Dockerfile in hadoopant/
+
+- logon to a running container
+ docker exec -it 0c1defb4a004 /bin/bash
+
+- compile wordcount
+export HADOOP_CLASSPATH=/usr/lib/jvm/java/lib/tools.jar
+jar xf /hadoop-2.8.2/share/hadoop/mapreduce/sources/hadoop-mapreduce-examples-2.8.2-sources.jar
+hadoop com.sun.tools.javac.Main org/apache/hadoop/examples/WordCount.java
+jar cf wc.jar org/apache/hadoop/examples/WordCount.class
+hdfs dfs -mkdir -p /train/wordcount/txt # don't create output dir
+hdfs dfs -copyFromLocal /trn/testdata/md/* /train/wordcount/txt/
+hadoop jar wc.jar org.apache.hadoop.examples.WordCount /train/wordcount/txt /train/wordcount/output
+hdfs dfs -cat /train/wordcount/output/part-r-00000|more
+
+mapred job -list
+mapred queue -list
+mapred queue -info default -showJobs
+mapred queue -showacls
+
+- build docker from local dockerfile
+# docker build - < Dockerfile # i didn't try this
+docker build -t hadoopant hadoopant # Dockerfile in hadoopant/
+docker run --mount type=bind,source=/srv/docker-data,target=/trn hadoopant
+docker run --mount type=bind,source=/srv/bigdata/USER/docker-data,target=/trn hadoopant
+docker exec -it 9cfcd4cf4dcf /bin/bash
+
+- run point rasterization
+#yum install ant # no need if running my hadoopant
+# restart docker if got permission error
+cd /root
+mkdir liuyan
+cd liuyan
+cp -r /trn/bigdata1 .
+export JAVA_HOME=/usr/lib/jvm/java
+export HADOOP_CLASSPATH=/usr/lib/jvm/java/lib/tools.jar
+cd bigdata1/complete/HadoopRasterization/
+ant jar
+hdfs dfs -mkdir -p /train/1
+hdfs dfs -copyFromLocal /trn/testdata/poihubei_sim.csv /train/1
+hadoop jar dist/queryradiation.jar runhadoop.RunRadQuery /train/1/poihubei_sim.csv /train/1.out /trn/1.asc 28 34 108 117 0.01
+hdfs dfs -cat /train/1.out/part-00000|head -n 10
+
+
+[] data gen for point rasterization in $HOME/data/gis/poi...
+awk -F, 'BEGIN{srand(100);}{print $1 "," $2 "," rand()*100}' poihubei.csv >poihubei_sim.csv
+minx miny maxx maxy
+108.05217 28.579817 116.566528 33.445
+108 28 117 34
+
+[] spark
+- pyspark jupyter mounting training data using bind mount:
+docker run --mount type=bind,source=/srv/docker-data,target=/trn -p 10000:8888 jupyter/pyspark-notebook
+
+- run local mode to use local file sys
+import pyspark
+sc = pyspark.SparkContext('local[*]')
+# do something to prove it works
+rdd = sc.parallelize(range(1000))
+rdd.takeSample(False, 5)
+# use file:///path/to/file to avoid no HDFS problem
+

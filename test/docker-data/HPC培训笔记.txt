@@ -1,0 +1,181 @@
+IO工作流没听懂
+Okular
+exascale
+超算挖矿
+
+touch grep ls
+hostname -f
+df -h
+ifconfig -a
+ls /data/
+df
+awk
+GNU parallel
+
+chmod +x abc.sh   变为可执行文件  ./abc.sh
+当前进程号 
+访问别人文件
+202.114.96.44
+pi.sh
+user27 ec9d5
+https://portal.xsede.org/#/guest
+
+salloc   srun sqyeye 
+静态库 动态库
+gcc -c pi.c
+ar rcs libmypi.a.pi.o
+gcc -o tmain tmain.c.pi.o
+
+cd /home/user27/
+
+
+[] static
+
+gcc -c myt.c
+ar rcs libmyt.a myt.o
+
+gcc -o myt_main myt_main.c -L. -lmyt
+
+[] shared
+gcc -fPIC -c myt.c
+gcc -fPIC -shared -o libmyt.so myt.o -lc
+gcc -o myt_main myt_main.c -L. -lmyt
+
+cd ..
+./myt_main # error, need to set LD_LIBRARY_PATH
+
+
+
+7/10
+工作流  docker  container（分布式  有条件  没有循环)
+makefile
+swift
+
+after:前面工作流开始执行，就可以执行
+afterany:前面工作终止即可
+afterok :前面工作全部顺利完成
+afternotok:
+
+scancel 493 494 
+
+
+1111111工作流   pegasus工作流管理系统
+
+[user27@login ~]$ jobid=`sbatch tok.sh | awk '{print $NF}'`
+[user27@login ~]$ echo $jobid（636)
+#[user27@login ~]$ sbatch tok.sh
+[user27@login ~]$ sbatch --dependency=afterok: 636 t.sh
+Submitted batch job 632
+[user27@login ~]$ squeue
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+               533      hpxg joboktes   user86 PD       0:00      1 (DependencyNeverSatisfied)
+               534      hpxg joboktes   user28 PD       0:00      1 (DependencyNeverSatisfied)
+               541      hpxg joboktes   user28 PD       0:00      1 (DependencyNeverSatisfied)
+               548      hpxg joboktes   user84 PD       0:00      1 (DependencyNeverSatisfied)
+               568      hpxg jobnotok   user39 PD       0:00      1 (DependencyNeverSatisfied)
+               575      hpxg jobnotok   user39 PD       0:00      1 (DependencyNeverSatisfied)
+               584      hpxg jobnotok   user23 PD       0:00      1 (DependencyNeverSatisfied)
+               592      hpxg jobnotok   user39 PD       0:00      1 (DependencyNeverSatisfied)
+               611      hpxg    jobok   user87 PD       0:00      1 (DependencyNeverSatisfied)
+               627      hpxg jobnotok   user36 PD       0:00      1 (DependencyNeverSatisfied)
+               632      hpxg    jobok   user27 PD       0:00      1 (DependencyNeverSatisfied)
+
+222222编译静态库
+gcc -c pi.c
+ar crv libmylib.a pi.o
+gcc -o tmain tmain.c -L. -lmylib
+[user27@login ~]$ ./tmain 100
+pi=3.141601
+
+
+33333高性能并行计算
+srun -N 2 -n 4 -t 1:00:00 -p hpxg --pty -l /bin/bash
+#ssh n0001
+parallel -S 2/n0001,2/n0002 --jobs 4 /home/user27/tmain ::: 10 100 1000 10000
+
+
+
+4444openmp线程
+gcc -fopenmp -o piloop pi_cs.c
+#OMP_NUM_THREADS=4
+#./helloword
+for i in 1 2 4 8;do ./piloop $i; done
+
+
+高性能计算软件库在地学领域的应用
+why 空间数据的密集性  计算密集性
+数据和算法的时空特征：空间差异性  空间自相关   时空动态性
+设计实现并行算法比串行困难的多
+how pRPL具有普适性的开源栅格并行计算开发库（图像 栅格多层数据处理)
+applications:低空间分辨率 高时间分辨率 modis  遥感数据时空融合
+自适应数据分块
+summary：必须考虑时空特征  高性能空间计算中间件、开发库、计算框架
+
+
+
+
+#pragma omp parallel 
+#pragma omp for
+
+
+555555mpi
+module avail
+module list
+module load openmpi
+mpicc -o mpibasic mpibasic.c
+[user27@login ~]$ mpirun -n 2 mpibasic
+I'm proc 0 of 2.
+I'm proc 1 of 2.
+[user27@login ~]$
+
+
+collective communication
+
+
+
+
+
+7.12
+计算图像上一个点到所有点的高程差
+mpi的nonblocking通信
+选区划分 学区划分 空间优化问题   遗传算法空间优化选区 各个选区mpi通信
+
+总时间=计算时间+通信时间+I/O时间
+mpiio写文件
+openacc加速科学计算
+
+
+mpi和其他并行计算模式混起来用 mpi+gpu +openmp +threads +shared memory  
+一个节点一个进程多个线程好于一个节点多个进程
+
+
+
+7/13 hadoop
+大气 修正大气模型
+生物 预测某种基因外在表现
+影像分析肿瘤预测
+药物
+天文
+公共卫生
+机器学习嵌入仿真
+cloud computing with Mapreduce and Hadoop(数据处理)
+map单独 reduce树状向上
+
+cd /srv/bigdata/user27/
+cp -r /srv/bigdata/liuyan/docker-data/ .
+docker run --mount type=bind,source=/srv/bigdata/user27/docker-data,target=/trn hadoopant
+docker container ls
+docker exec -it 73c1c9891041 /bin/bash
+cd /trn/hadoop-examples/
+export HADOOP_CLASSPATH=/usr/lib/jvm/java/lib/tools.jar
+hadoop com.sun.tools.javac.Main org/apache/hadoop/examples(报错)
+hdfs dfs -mkdir /user27/
+hdfs dfs -copyFromLocal /trn/testdata /user27
+jar cf wc.jar org/apache/hadoop/examples/WordCount.class
+hadoop jar wc.jar org.apache.hadoop.examples.WordCount /user27/testdata/md /user27/o/
+
+cd trn
+hdfs dfs -ls /user27/
+hdfs dfs -cat /user27/o/part-r-00000
+
+

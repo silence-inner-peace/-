@@ -1,0 +1,15 @@
+[] static
+
+gcc -c myt.c
+ar rcs libmyt.a myt.o
+
+gcc -o myt_main myt_main.c -L. -lmyt
+
+[] shared
+gcc -fPIC -c myt.c
+gcc -fPIC -shared -o libmyt.so myt.o -lc
+gcc -o myt_main myt_main.c -L. -lmyt
+
+cd ..
+./myt_main # error, need to set LD_LIBRARY_PATH
+

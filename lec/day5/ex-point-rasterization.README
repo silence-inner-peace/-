@@ -1,0 +1,22 @@
+[] Input data
+You are given a test data csv covering Hubei province like this:
+[root@11b4b1cc4fd7 /]# head /trn/testdata/poihubei_sim.csv 
+0,30.395994,108.060066,31.6138
+0,30.430584,108.055771,32.3663
+0,30.403204,108.064827,80.9491
+0,30.411228,108.065811,11.4878
+0,30.403805,108.057358,75.1506
+
+This CSV includes latitude (2nd column), longitude (3rd column), and a measure (4th column) on that point location (lat, lon).
+
+[] Input bounding box: minLat=28 minLon=108 maxLat=34 maxLon=117 
+
+[] goal: create a geospatial image of a resolution, say 0.01 degree (i.e., each pixel is 0.01x0.01 degree big, approximately 1km x 1km). In each pixel, all the points fall into this pixel contribute to the value of this pixel V. V=mean(Vi), where Vi is the measure of point i that falls into this pixel.
+
+[] how to do it?
+- Partition the study area into regular grids
+- For each record entry, find the cell it falls in
+- Summarize the sum and the count of radiation values in each cell
+- Calculate the averaged value in each cell
+- Output a raster
+

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<project name="hashtagfilter" default="main" basedir="."> 
+<property name="src.dir" location="src" />
+<property name="classes.dir" location="classes" />  
+<property name="dist.dir" location="dist" />   
+<property name="dist.jarfile" value="querytweets.jar" />  
+<property name="lib.dir1"  location="/usr/lib/hadoop"/>
+<property name="lib.dir2"  location="/usr/lib/hadoop-hdfs"/>
+<property name="lib.dir3"  location="/usr/lib/hadoop-mapreduce"/>
+<property name="lib.dir4"  location="/usr/lib/hadoop-yarn"/>
+<path id="mylibs">
+	<fileset dir="${lib.dir1}">
+		<include name="lib/**/**.jar"/>
+		<include name="**/**.jar"/>
+    	</fileset>
+   	<fileset dir="${lib.dir2}">
+    		<include name="lib/**/**.jar"/>
+    		<include name="**/**.jar"/>
+    	</fileset>
+   	<fileset dir="${lib.dir3}">	
+   		<include name="lib/**/**.jar"/>
+   		<include name="**/**.jar"/>     	     			     	</fileset>   		
+   	<fileset dir="${lib.dir4}">
+   		<include name="lib/**/**.jar"/>	     	     			     	     	<include name="**/**.jar"/>	      			     	     	</fileset>
+</path>
+
+<target name="clean" description="Clean up output directories.">
+	<delete dir="${classes.dir}" />   
+</target>   
+
+<target name="makedir">
+        <mkdir dir="${classes.dir}" />
+        <mkdir dir="${dist.dir}" />
+</target>
+
+<target name="compile" depends="clean, makedir" description="Compile all sources.">  
+	<property name="myclasspath" refid="mylibs"/>
+    	<echo message="Classpath = ${myclasspath}"/>
+   	<javac srcdir="${src.dir}" destdir="${classes.dir}" classpathref="mylibs" debug="on"/> 
+</target> 
+
+<target name="jar" depends="compile" description="Creates the binary distribution.">   
+	<jar basedir="${classes.dir}" destfile="${dist.dir}/${dist.jarfile}" >
+        	<manifest>
+        		<attribute name="Main-Class" value="runhadoop.RunMovePattern" />
+        	</manifest>
+        </jar>
+</target>   
+
+<target name="main" depends="compile, jar">
+	<description>Main target</description>
+</target>
+</project>

@@ -1,0 +1,16 @@
+[] Workflow scenario
+This is a data processing flow:
+
+datagen: no input. output 10 date files, each has 1000 lines, each line is a random number (using $RANDOM)
+
+datamax: input is one data file. output the max number in that file as an output file
+
+max: input is 10 files, each containing a number that is the max of a data file. output is the max of the 10 max numbers.
+
+check: it watches how many datamax failed and reports success/fail stat
+
+fail rate: 1/3
+
+you can fix the location of input/output directory and/or input/output file name pattern for separate processes to read correct input
+
+

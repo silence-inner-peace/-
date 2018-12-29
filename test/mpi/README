@@ -1,0 +1,16 @@
+[] hands-on 1: approximate pi using MPI
+requirements:
+
+1. number of steps is decided by rank 0;
+
+2 (optional). root decides the consecutive range of steps each process should take and let them know. e.g., root can evenly divide nsteps into nsteps/np ranges and send <start, nsubsteps> to each process.
+
+3. all the processes should have the final result of pi.
+
+[] hands-on 2: try out MPI_Comm_split to create row-wise and column-wise communication groups.
+e.g., divide proc ranks into two rows, ranks on the same row belong to the same communicator.
+
+[] communicator creation using MPI_Cart_create:
+MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 1, &topoComm);
+MPI_Cart_shift(topoComm, 0, 1, &neighbor_probe[0], &neighbor_probe[1]); //up&down 'cause direction 0 means Y
+MPI_Cart_shift(topoComm, 1, 1, &neighbor_probe[2], &neighbor_probe[3]); //left&right 'cause direction 1 means X

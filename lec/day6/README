@@ -1,0 +1,5 @@
+[] spark
+- pyspark jupyter mounting training data using bind mount:
+docker run --mount type=bind,source=/srv/docker-data,target=/trn -p 10000:8888 jupyter/pyspark-notebook
+
+

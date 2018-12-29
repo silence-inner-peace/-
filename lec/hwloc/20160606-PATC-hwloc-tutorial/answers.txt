@@ -1,0 +1,306 @@
+52 - Hands-on lstopo
+
+ssh foo lstopo foo.xml
+lstopo -i foo.xml
+ --ignore cache
+ --no-legend
+ --restrict $(hwloc-calc -i foo.xml package:0)
+ foo.pdf
+
+
+
+
+53 - Hands-on hwloc-bind and hwloc-calc
+
+hwloc-bind core:0 -- sleep 100
+hwloc-bind --get --pid $(pidof sleep)
+hwloc-ps
+
+hwloc-calc -N core NUMA:1
+
+hwloc-calc all ~core:all.pu:0 -I pu --po
+
+hwloc-calc -I core os=mlx4_0
+
+hwloc-bind numa:0 ./cudabw 
+hwloc-bind numa:1 ./cudabw 
+
+
+
+
+
+62 - Hands-on browsing the topology
+
+#include <hwloc.h>
+int main(int argc, char *argv[])
+{
+  hwloc_topology_t topo;
+  int err;
+  /* initialize a topology context */
+  err = hwloc_topology_init(&topo);
+  assert(!err);
+  /* build the topology created and configured above */
+  err = hwloc_topology_load(topo);
+
+  {
+    printf("%u cores\n",
+	   hwloc_get_nbobjs_by_type(topo, HWLOC_OBJ_CORE));
+  }
+
+  {
+    hwloc_obj_t core3, core7;
+    core3 = hwloc_get_obj_by_type(topo, HWLOC_OBJ_CORE, 3);
+    core7 = hwloc_get_obj_by_type(topo, HWLOC_OBJ_CORE, 7);
+    if (core3 && core7) {
+      hwloc_obj_t ancestor = hwloc_get_common_ancestor_obj(topo, core3, core7);
+      printf("ancestor type %s\n", hwloc_obj_type_string(ancestor->type));
+    }
+  }
+
+  {
+    hwloc_obj_t core0 = hwloc_get_obj_by_type(topo, HWLOC_OBJ_CORE, 0);
+    hwloc_obj_t parent = core0;
+    while (parent && !parent->memory.local_memory)
+      parent = parent->parent;
+    printf("%llu bytes\n", (unsigned long long) parent->memory.local_memory);
+  }
+  
+  {
+    hwloc_obj_t pu = hwloc_get_obj_by_type(topo, HWLOC_OBJ_PU, 0);
+    while (pu) {
+      printf("%u\n", pu->os_index);
+      pu = pu->next_cousin;
+    }
+  }
+
+  /* terminate this topology context */
+  hwloc_topology_destroy(topo);
+  return 0;
+}
+
+
+
+
+67 - Hands-on bitmaps and binding
+
+#include <hwloc.h>
+#include <assert.h>
+#include <unistd.h>
+
+int main(int argc, char *argv[])
+{
+  hwloc_topology_t topo;
+  int err;
+  /* initialize a topology context */
+  err = hwloc_topology_init(&topo);
+  assert(!err);
+  /* build the topology created and configured above */
+  err = hwloc_topology_load(topo);
+
+  {
+    hwloc_obj_t core0, core2, core4;
+    hwloc_bitmap_t set;
+    char *a;
+    int err, i;
+
+    core0 = hwloc_get_obj_by_type(topo, HWLOC_OBJ_CORE, 0);
+    err = hwloc_set_cpubind(topo, core0->cpuset, 0);
+    assert(!err);
+
+    core2 = hwloc_get_obj_by_type(topo, HWLOC_OBJ_CORE, 2);
+    core4 = hwloc_get_obj_by_type(topo, HWLOC_OBJ_CORE, 4);
+
+    set = hwloc_bitmap_dup(core2->cpuset);
+    hwloc_bitmap_or(set, set, core4->cpuset);
+
+    err = hwloc_set_cpubind(topo, set, 0);
+    assert(!err);
+
+    err = hwloc_get_cpubind(topo, set, 0);
+    hwloc_bitmap_asprintf(&a, set);
+    printf("bound to %s\n", a);
+    free(a);
+
+    for(i=0; i<10; i++) {
+      err = hwloc_get_last_cpu_location(topo, set, 0);
+      hwloc_bitmap_asprintf(&a, set);
+      printf("running at %s\n", a);
+      free(a);
+      sleep(1);
+    }
+
+    /* reget my binding */
+    err = hwloc_get_cpubind(topo, set, 0);
+    /* reduce the set to a single PU */
+    hwloc_bitmap_singlify(set);
+    /* rebind and reprint my binding */
+    err = hwloc_set_cpubind(topo, set, 0);
+    err = hwloc_get_cpubind(topo, set, 0);
+    hwloc_bitmap_asprintf(&a, set);
+    printf("bound to %s\n", a);
+    free(a);
+
+    for(i=0; i<10; i++) {
+      err = hwloc_get_last_cpu_location(topo, set, 0);
+      hwloc_bitmap_asprintf(&a, set);
+      printf("running at %s\n", a);
+      free(a);
+      sleep(1);
+    }
+
+    hwloc_bitmap_free(set);
+  }
+
+  /* terminate this topology context */
+  hwloc_topology_destroy(topo);
+  return 0;
+}
+
+
+
+70 - Hands on I/O
+
+#include <stdio.h>
+#include <assert.h>
+#include <cuda_runtime_api.h>
+#include <hwloc.h>
+#include <hwloc/cudart.h>
+/* link with -lhwloc -lcuda */
+
+int main(void)
+{
+  hwloc_topology_t topology;
+  cudaError_t cerr;
+  int count, i;
+  int err;
+
+  cerr = cudaGetDeviceCount(&count);
+  if (cerr) {
+    printf("cudaGetDeviceCount failed %d\n", cerr);
+    return 0;
+  }
+  printf("cudaGetDeviceCount found %d devices\n", count);
+
+  hwloc_topology_init(&topology);
+  hwloc_topology_set_flags(topology, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);
+  hwloc_topology_load(topology);
+
+  /* first way: directly get the cpuset of the i-th cuda device,
+   * and get the covering NUMA node.
+   */
+  for(i=0; i<count; i++) {
+    hwloc_bitmap_t set;
+    hwloc_obj_t obj;
+    char *string;
+
+    set = hwloc_bitmap_alloc();
+    err = hwloc_cudart_get_device_cpuset(topology, i, set);
+    assert(!err);
+    /* we could bind a process to that cpuset */
+
+    hwloc_bitmap_asprintf(&string, set);
+    printf("found cpuset %s for %dth CUDA device\n", string, i);
+    free(string);
+
+    obj = NULL;
+    while ((obj = hwloc_get_next_obj_covering_cpuset_by_type(topology, set, HWLOC_OBJ_NUMANODE, obj)) != NULL)
+      printf("found NUMA node L#%u P#%u for %dth device\n",
+	     obj->logical_index, obj->os_index, i);
+    hwloc_bitmap_free(set);
+  }
+
+  /* second way: get the OS device of the i-th cude device,
+   * walk up to find the NUMA node parent, and display its number
+   */
+  for(i=0; i<count; i++) {
+    hwloc_obj_t osdev, ancestor;
+    osdev = hwloc_cudart_get_device_osdev_by_index(topology, i);
+    assert(osdev);
+
+    ancestor = hwloc_get_non_io_ancestor_obj(topology, osdev);
+    while (ancestor && ancestor->type != HWLOC_OBJ_NUMANODE)
+      ancestor = ancestor->parent;
+    if (ancestor->type == HWLOC_OBJ_NUMANODE)
+      printf("found NUMA node L#%u P#%u for os device %s\n",
+	     ancestor->logical_index, ancestor->os_index, osdev->name);
+  }
+
+  hwloc_topology_destroy(topology);
+
+  return 0;
+}
+
+#include <stdio.h>
+#include <assert.h>
+#include <infiniband/verbs.h>
+#include <hwloc.h>
+#include <hwloc/openfabrics-verbs.h>
+/* link with -lhwloc -libverbs */
+
+int main(void)
+{
+  hwloc_topology_t topology;
+  struct ibv_device **dev_list;
+  hwloc_obj_t osdev;
+  int i, count, err;
+
+  hwloc_topology_init(&topology);
+  hwloc_topology_set_flags(topology, HWLOC_TOPOLOGY_FLAG_IO_DEVICES);
+  hwloc_topology_load(topology);
+
+  dev_list = ibv_get_device_list(&count);
+  if (!dev_list) {
+    fprintf(stderr, "ibv_get_device_list failed\n");
+    return 0;
+  }
+  printf("ibv_get_device_list found %d devices\n", count);
+
+  /* first way: directly get the cpuset of the ibv_device,
+   * and get the covering NUMA node.
+   */
+ for(i=0; i<count; i++) {
+    hwloc_obj_t obj;
+    hwloc_bitmap_t set;
+    struct ibv_device *dev = dev_list[i];
+    char *string;
+
+    set = hwloc_bitmap_alloc();
+    err = hwloc_ibv_get_device_cpuset(topology, dev, set);
+    if (err < 0) {
+      printf("failed to get cpuset for device %d (%s)\n",
+	     i, ibv_get_device_name(dev));
+      hwloc_bitmap_free(set);
+      continue;
+    }
+
+    hwloc_bitmap_asprintf(&string, set);
+    printf("found cpuset %s for %dth device\n", string, i);
+    free(string);
+
+    obj = NULL;
+    while ((obj = hwloc_get_next_obj_covering_cpuset_by_type(topology, set, HWLOC_OBJ_NUMANODE, obj)) != NULL)
+      printf("found NUMA node L#%u P#%u for %dth device\n",
+	     obj->logical_index, obj->os_index, i);
+    hwloc_bitmap_free(set);
+  }
+
+  /* second-way: iterate over Open-Fabrices OS devices */
+  osdev = NULL;
+  while ((osdev = hwloc_get_next_osdev(topology, osdev)) != NULL) {
+    hwloc_obj_t ancestor;
+    if (osdev->attr->osdev.type != HWLOC_OBJ_OSDEV_OPENFABRICS)
+      continue;
+
+    ancestor = hwloc_get_non_io_ancestor_obj(topology, osdev);
+    while (ancestor && ancestor->type != HWLOC_OBJ_NUMANODE)
+      ancestor = ancestor->parent;
+    if (ancestor->type == HWLOC_OBJ_NUMANODE)
+      printf("found NUMA node L#%u P#%u for os device %s\n",
+	     ancestor->logical_index, ancestor->os_index, osdev->name);
+  }
+
+  hwloc_topology_destroy(topology);
+
+  return 0;
+}
+
